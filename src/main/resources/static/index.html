@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AI Data Analyst — Demo (Vue)</title>
+    <style>
+        body { font-family: Inter, Arial, sans-serif; margin: 20px; color: #222; }
+        .container { max-width: 1100px; margin: 0 auto; }
+        header { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+        h1 { margin: 0; font-size: 20px; }
+        .panel { margin-top: 18px; padding: 14px; border: 1px solid #e6e6e6; border-radius: 8px; background:#fff; box-shadow: 0 1px 2px rgba(0,0,0,0.03); }
+        textarea { width:98%; min-height:86px; padding:10px; font-size:14px; border-radius:6px; border:1px solid #ddd; resize:vertical; }
+        button { padding:10px 14px; border-radius:6px; border: none; cursor:pointer; background:#2563eb; color:#fff; font-weight:600; }
+        button[disabled] { opacity:0.6; cursor:default; }
+        .row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+        .sql-pre { background:#0b1220; color:#e6eef8; padding:12px; border-radius:6px; overflow:auto; font-family: "Courier New", monospace; }
+        table { border-collapse:collapse; width:100%; margin-top:8px; }
+        th, td { border:1px solid #eee; padding:8px; text-align:left; font-size:13px; }
+        th { background:#f7fafc; font-weight:700; }
+        .muted { color:#666; font-size:13px; }
+        .loader { display:inline-block; width:14px; height:14px; border:2px solid #cfd8e3; border-top-color:#1f2937; border-radius:50%; animation:spin .8s linear infinite; vertical-align:middle; }
+        @keyframes spin { to { transform: rotate(360deg);} }
+        .error { color:#9b1c1c; background:#fff5f5; padding:10px; border-radius:6px; border:1px solid #ffdede; margin-top:12px; }
+        .history { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+        .chip { padding:6px 8px; background:#f1f5f9; border-radius:999px; cursor:pointer; font-size:13px; }
+        /* simple styles for rendered analysis HTML */
+        .analysis-html h1, .analysis-html h2, .analysis-html h3 { margin-top:0; }
+        .analysis-html hr { border: none; border-top:1px solid #e6e6e6; margin: 12px 0; }
+        .analysis-html ul { margin-left: 1.1rem; }
+        .analysis-html ol { margin-left: 1.1rem; }
+        .analysis-html strong { font-weight:600; }
+        .analysis-html em { font-style:italic; }
+        .analysis-html table.report { width:100%; border-collapse:collapse; margin-top:8px; }
+        .analysis-html table.report th, .analysis-html table.report td { border:1px solid #eee; padding:6px; text-align:left; }
+        .analysis-html .note { color:#6b7280; font-size:13px; margin-top:8px; }
+    </style>
+</head>
+<body>
+<div id="app" class="container">
+    <header>
+        <h1>AI Data Analyst — Demo</h1>
+        <div class="muted">Question → SQL → Execution → Analysis</div>
+    </header>
+
+    <div class="panel">
+        <label><strong>Question</strong></label>
+        <textarea style="margin-top:10px;" v-model="question" :placeholder="placeholder"></textarea>
+
+        <div class="row" style="margin-top:10px;">
+            <button :disabled="loading || !canAsk" @click="sendQuestion">
+                {{ loading ? 'Processing...' : 'Submit' }}
+            </button>
+            <div v-if="loading" class="loader" aria-hidden="true"></div>
+            <div style="margin-left:12px;" class="muted">Example: "Top 5 products by total sales for July 2024"</div>
+        </div>
+
+        <div class="history">
+            <div v-for="(h, i) in history" :key="i" class="chip" @click="useHistory(h)">{{ truncate(h, 50) }}</div>
+        </div>
+
+        <div v-if="error" class="error">{{ error }}</div>
+    </div>
+
+    <div v-if="response" class="panel" style="margin-top:18px;">
+        <h3>Generated SQL</h3>
+        <pre class="sql-pre">{{ response.sql }}</pre>
+
+        <h3 style="margin-top:14px;">Result</h3>
+        <div v-if="response.data && response.data.length > 0">
+            <table>
+                <thead>
+                <tr>
+                    <th v-for="col in columns" :key="col">{{ col }}</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr v-for="(row, rIndex) in response.data" :key="rIndex">
+                    <td v-for="col in columns" :key="col">{{ formatCell(row[col]) }}</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <div v-else class="muted">Empty result</div>
+
+        <h3 style="margin-top:14px;">Analysis</h3>
+
+        <!-- Render sanitized, auto-formatted HTML here -->
+        <!-- Use v-html with responseHtml (computed sanitized HTML) -->
+        <div class="analysis-html" v-html="responseHtml"></div>
+    </div>
+</div>
+
+<!-- Vue 3 + CDN -->
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<!-- Markdown parser -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<!-- DOMPurify for sanitization -->
+<script src="https://cdn.jsdelivr.net/npm/dompurify@2.4.0/dist/purify.min.js"></script>
+
+<script>
+    const { createApp, ref, computed } = Vue;
+
+    createApp({
+        setup() {
+            const question = ref('');
+            const response = ref(null);
+            const loading = ref(false);
+            const error = ref(null);
+            const history = ref([]);
+            const placeholder = 'For example: Show the top 5 products by total sales for July 2024';
+
+            const canAsk = computed(() => question.value && question.value.trim().length > 3);
+
+            // Convert plain/markdown-like analysis text to sanitized HTML
+            // Priority:
+            // 1) if response.html exists (server provided preformatted HTML), use it (still sanitize)
+            // 2) else if response.analysis exists, convert via marked -> sanitize
+            // 3) else empty string
+            const responseHtml = computed(() => {
+                if (!response.value) return '';
+                try {
+                    // if server returned pre-rendered HTML, sanitize and return
+                    if (response.value.html && typeof response.value.html === 'string' && response.value.html.trim()) {
+                        return DOMPurify.sanitize(response.value.html);
+                    }
+                    // else convert analysis (assumed markdown-like) to HTML
+                    if (response.value.analysis && typeof response.value.analysis === 'string') {
+                        // small pre-processing to help parser with '---' separators if any
+                        // and to ensure lines with leading '*' are treated as lists
+                        const raw = response.value.analysis
+                                // convert any '---' separators on their own line to markdown hr
+                                .replace(/^---\s*$/mg, '\n\n---\n\n')
+                            // ensure lists that use '* ' are recognized
+                        ;
+                        // Use marked to convert markdown -> HTML
+                        const html = marked.parse(raw);
+                        // sanitize before returning to DOM
+                        return DOMPurify.sanitize(html);
+                    }
+                } catch (e) {
+                    console.error('Formatting error:', e);
+                    return '<div class="muted">Unable to format analysis text.</div>';
+                }
+                return '';
+            });
+
+            const sendQuestion = async () => {
+                error.value = null;
+                response.value = null;
+                const q = question.value.trim();
+                if (!q) return;
+                loading.value = true;
+                try {
+                    const res = await fetch('/api/query', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ question: q })
+                    });
+
+                    if (!res.ok) {
+                        const txt = await res.text();
+                        throw new Error(`Server ${res.status}: ${txt || res.statusText}`);
+                    }
+
+                    const data = await res.json();
+
+                    // Expecting data: { sql, data: [ {...} ], analysis: '...', maybe html: '...' }
+                    response.value = data;
+
+                    // normalize columns
+                    if (data.data && data.data.length > 0) {
+                        response.value._columns = Object.keys(data.data[0]);
+                    } else {
+                        response.value._columns = [];
+                    }
+
+                    // update history (most recent first, unique)
+                    history.value = [q].concat(history.value.filter(h => h !== q)).slice(0, 10);
+                } catch (e) {
+                    console.error(e);
+                    error.value = e.message || 'Unknown error';
+                } finally {
+                    loading.value = false;
+                }
+            };
+
+            const useHistory = (text) => { question.value = text; };
+            const truncate = (s, len=40) => { if (!s) return ''; return s.length > len ? s.slice(0,len-1) + '…' : s; };
+            const formatCell = (v) => {
+                if (v === null || v === undefined) return '';
+                if (typeof v === 'string') {
+                    const iso = /^\d{4}-\d{2}-\d{2}T?\d{0,2}:?\d{0,2}:?\d{0,2}/;
+                    if (iso.test(v)) return v.replace('T', ' ').slice(0,19);
+                    return v;
+                }
+                return String(v);
+            };
+
+            return {
+                question, response, loading, error, history, placeholder,
+                sendQuestion, useHistory, truncate, canAsk, formatCell,
+                columns: computed(() => (response.value && response.value._columns) ? response.value._columns : []),
+                responseHtml
+            };
+        }
+    }).mount('#app');
+</script>
+</body>
+</html>

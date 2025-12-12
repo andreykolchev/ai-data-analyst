@@ -1,0 +1,35 @@
+Database schema description:
+
+Table: customers
+Columns:
+  - id (integer) NOT NULL
+  - name (text) NOT NULL
+  - email (text)
+  - created_at (timestamp without time zone) NOT NULL
+
+Table: order_items
+Columns:
+  - id (integer) NOT NULL
+  - order_id (integer) NOT NULL
+  - product_id (integer) NOT NULL
+  - quantity (integer) NOT NULL
+  - price (numeric) NOT NULL
+Foreign Keys:
+  - order_id -> orders.id
+  - product_id -> products.id
+
+Table: orders
+Columns:
+  - id (integer) NOT NULL
+  - customer_id (integer) NOT NULL
+  - order_date (timestamp without time zone) NOT NULL
+  - total_amount (numeric) NOT NULL
+Foreign Keys:
+  - customer_id -> customers.id
+
+Table: products
+Columns:
+  - id (integer) NOT NULL
+  - product_name (text) NOT NULL
+  - category (text) NOT NULL
+

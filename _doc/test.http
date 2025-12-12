@@ -1,0 +1,9 @@
+
+###
+
+POST http://localhost:8080/api/query
+Content-Type: application/json
+
+{
+  "question": "Total revenue by month in 2024"
+}
