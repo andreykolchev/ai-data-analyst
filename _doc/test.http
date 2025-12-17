@@ -7,3 +7,23 @@ Content-Type: application/json
 {
   "question": "Total revenue by month in 2024"
 }
+
+
+
+###
+# curl http://localhost:11434/api/generate
+#  -d '{
+#    "model": "phi3:mini",
+#    "prompt": "Generate SQL to list users with total orders > 1000",
+#    "stream": false
+#  }'
+POST http://localhost:11434/api/generate
+Content-Type: application/json
+
+{
+  "model": "qwen2.5-coder:3b",
+  "prompt": "You are an expert SQL generator.\nYou must only produce PostgreSQL SELECT statements with LIMIT.\nNever use UPDATE, DELETE, INSERT or DDL.\nDo not explain.\n\nSchema:\nDatabase schema description:\n\nTable: customers\n  Columns:\n  - id (integer) NOT NULL\n  - name (text) NOT NULL\n  - email (text)\n  - created_at (timestamp without time zone) NOT NULL\n\nTable: flyway_schema_history\n  Columns:\n  - installed_rank (integer) NOT NULL\n  - version (character varying)\n  - description (character varying) NOT NULL\n  - type (character varying) NOT NULL\n  - script (character varying) NOT NULL\n  - checksum (integer)\n  - installed_by (character varying) NOT NULL\n  - installed_on (timestamp without time zone) NOT NULL\n  - execution_time (integer) NOT NULL\n  - success (boolean) NOT NULL\n\nTable: order_items\n  Columns:\n  - id (integer) NOT NULL\n  - order_id (integer) NOT NULL\n  - product_id (integer) NOT NULL\n  - quantity (integer) NOT NULL\n  - price (numeric) NOT NULL\n  Foreign Keys:\n  - order_id -> orders.id\n  - product_id -> products.id\n\nTable: orders\n  Columns:\n  - id (integer) NOT NULL\n  - customer_id (integer) NOT NULL\n  - order_date (timestamp without time zone) NOT NULL\n  - total_amount (numeric) NOT NULL\n  Foreign Keys:\n  - customer_id -> customers.id\n\nTable: products\n  Columns:\n  - id (integer) NOT NULL\n  - product_name (text) NOT NULL\n  - category (text) NOT NULL\n\nQuestion: Total revenue by month in 2024\n\nSQL:",
+  "stream": false
+}
+
+###

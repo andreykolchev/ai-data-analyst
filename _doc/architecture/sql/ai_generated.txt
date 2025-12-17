@@ -15,3 +15,12 @@ ORDER BY
   total_quantity_sold DESC
 LIMIT 5;
 ```
+
+SELECT
+EXTRACT(YEAR FROM order_date) AS year,
+EXTRACT(MONTH FROM order_date) AS month,
+SUM(total_amount) AS total_revenue
+FROM     orders
+WHERE     EXTRACT(YEAR FROM order_date) = 2024
+GROUP BY     year, month
+ORDER BY     year, month

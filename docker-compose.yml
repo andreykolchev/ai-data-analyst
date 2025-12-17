@@ -1,4 +1,6 @@
 services:
+
+#  DB postgres
   postgres:
     image: postgres:16-alpine
     container_name: analytics-postgres
@@ -17,5 +19,29 @@ services:
       timeout: 5s
       retries: 5
 
+#  local inference-runtime for LLM
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama:/root/.ollama
+    restart: unless-stopped
+
 volumes:
   pgdata:
+  ollama:
+
+#docker exec -it ollama ollama pull {model}
+#docker exec -it ollama ollama rm {model}
+
+# models:
+# qwen3:4b
+# qwen2.5-coder:7b
+# qwen2.5-coder:3b
+# phi3:mini
+# stablelm:3b
+# deepseek-coder:6.7b
+
+

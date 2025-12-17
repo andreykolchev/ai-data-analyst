@@ -1,17 +1,14 @@
 package com.aidataanalyst.service;
 
-import com.google.genai.Client;
-import com.google.genai.types.GenerateContentConfig;
-import com.google.genai.types.GenerateContentResponse;
 import org.springframework.stereotype.Service;
 
 @Service
 public class SqlGeneratorService {
 
-    private final Client geminiClient;
+    private final AIService aiService;
 
-    public SqlGeneratorService(Client geminiClient) {
-        this.geminiClient = geminiClient;
+    public SqlGeneratorService(AIService aiService) {
+        this.aiService = aiService;
     }
 
     public String generateSql(String question, String schema) {
@@ -20,6 +17,7 @@ public class SqlGeneratorService {
                 You are an expert SQL generator.
                 You must only produce PostgreSQL SELECT statements with LIMIT.
                 Never use UPDATE, DELETE, INSERT or DDL.
+                Do not explain..
                 
                 Schema:
                 %s
@@ -29,21 +27,19 @@ public class SqlGeneratorService {
                 SQL:
                 """.formatted(schema, question);
 
-        GenerateContentConfig config = GenerateContentConfig.builder().build();
-
-        GenerateContentResponse geminiResp = geminiClient.models.generateContent("gemini-2.5-flash", prompt, config);
-
-        return trim(geminiResp.candidates().orElseThrow().getFirst().content().orElseThrow().text());
-        
-        
+        String aiResp = aiService.ollamaGenerateContent(prompt);
+        return extractSqlFromResponse(aiResp);
     }
-    
-    private String trim(String generatedSql){
-        if (generatedSql == null) return "";
-        return generatedSql
-                .replace("\r\n", "\n")
-                .replace("```sql", "")
-                .replace("```", "")
-                .trim();
+
+    private String extractSqlFromResponse(String raw) {
+        if (raw == null) return "";
+        String normalized = raw.replace("\r\n", "\n");
+        // First, try fenced SQL block: ```sql ... ``` (case-insensitive)
+        java.util.regex.Pattern pSql = java.util.regex.Pattern.compile("(?is)```sql\\s*\\R([\\s\\S]*?)\\R?```", java.util.regex.Pattern.CASE_INSENSITIVE);
+        java.util.regex.Matcher mSql = pSql.matcher(normalized);
+        if (mSql.find()) {
+            return mSql.group(1).trim();
+        }
+        return "";
     }
 }

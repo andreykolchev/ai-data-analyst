@@ -1,15 +1,20 @@
-SELECT
-  p.product_name,
-  SUM(oi.quantity) AS total_quantity_sold
+SELECT p.product_name,
+       SUM(oi.quantity) AS total_quantity_sold
 FROM products AS p
-JOIN order_items AS oi
-  ON p.id = oi.product_id
-JOIN orders AS o
-  ON oi.order_id = o.id
-WHERE
-  EXTRACT(MONTH FROM o.order_date) = 7
-GROUP BY
-  p.product_name
-ORDER BY
-  total_quantity_sold DESC
+         JOIN order_items AS oi
+              ON p.id = oi.product_id
+         JOIN orders AS o
+              ON oi.order_id = o.id
+WHERE EXTRACT(MONTH FROM o.order_date) = 7
+GROUP BY p.product_name
+ORDER BY total_quantity_sold DESC
 LIMIT 5;
+
+
+SELECT EXTRACT(YEAR FROM order_date)  AS year,
+       EXTRACT(MONTH FROM order_date) AS month,
+       SUM(total_amount)              AS total_revenue
+FROM orders
+WHERE EXTRACT(YEAR FROM order_date) = 2024
+GROUP BY year, month
+ORDER BY year, month

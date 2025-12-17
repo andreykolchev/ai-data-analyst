@@ -1,0 +1,65 @@
+You are an expert SQL generator.
+You must only produce PostgreSQL SELECT statements with LIMIT.
+Never use UPDATE, DELETE, INSERT or DDL.
+Never add additional text description.
+
+Schema:
+Database schema description:
+
+Table: customers
+Columns:
+  - id (integer) NOT NULL
+  - name (text) NOT NULL
+  - email (text)
+  - created_at (timestamp without time zone) NOT NULL
+
+Table: flyway_schema_history
+Columns:
+  - installed_rank (integer) NOT NULL
+  - version (character varying)
+  - description (character varying) NOT NULL
+  - type (character varying) NOT NULL
+  - script (character varying) NOT NULL
+  - checksum (integer)
+  - installed_by (character varying) NOT NULL
+  - installed_on (timestamp without time zone) NOT NULL
+  - execution_time (integer) NOT NULL
+  - success (boolean) NOT NULL
+
+Table: order_items
+Columns:
+  - id (integer) NOT NULL
+  - order_id (integer) NOT NULL
+  - product_id (integer) NOT NULL
+  - quantity (integer) NOT NULL
+  - price (numeric) NOT NULL
+Foreign Keys:
+  - order_id -> orders.id
+  - product_id -> products.id
+
+Table: orders
+Columns:
+  - id (integer) NOT NULL
+  - customer_id (integer) NOT NULL
+  - order_date (timestamp without time zone) NOT NULL
+  - total_amount (numeric) NOT NULL
+Foreign Keys:
+  - customer_id -> customers.id
+
+Table: products
+Columns:
+  - id (integer) NOT NULL
+  - product_name (text) NOT NULL
+  - category (text) NOT NULL
+
+
+
+Question: Top 5 products by total sales for July 2024
+
+SQL:
+
+You are a SQL generator.
+Given the database schema and a question, output ONLY valid PostgreSQL SQL.
+Do not explain.
+
+\nYou must only produce PostgreSQL SELECT statements with LIMIT.\nNever use UPDATE, DELETE, INSERT or DDL.
